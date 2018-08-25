@@ -82,17 +82,45 @@ pub fn keygen<R: Rng>(rng: &mut R, mpk: &Mpk, Msk(msk): &Msk, ids: &[&str]) -> S
     for i in 0..ids.len() {
         let r = Fr::rand(rng);
 
-        // MSK * prod_(k=1)^j F(id_k)^r_k
+        // MSK * prod_(k=1)^j F(id_k)^(r_k)
         let (_, mut t) = mpk.f(i, &ids[i]);
         t.mul_assign(r.into_repr());
         d0.add_assign(&t);
 
-        // g^r_j
+        // g^(r_j)
         let t1 = g.into_affine().mul(r.into_repr());
         dn.push(t1);
     }
 
     Sk(d0, dn)
+}
+
+impl Sk {
+    pub fn keygen<R: Rng>(&self, rng: &mut R, mpk: &Mpk, ids: &[&str]) -> Sk {
+        let Sk(d0, dn) = self;
+        let Mpk { g: (_, g), .. } = mpk;
+
+        assert!(dn.len() + ids.len() <= L);
+
+        let len = dn.len();
+        let mut d0 = d0.clone();
+        let mut dn = dn.clone();
+
+        for i in 0..ids.len() {
+            let r = Fr::rand(rng);
+
+            // d0 * F(id_j)^(r_j)
+            let (_, mut t) = mpk.f(len + i, &ids[i]);
+            t.mul_assign(r.into_repr());
+            d0.add_assign(&t);
+
+            // g^(r_j)
+            let t1 = g.into_affine().mul(r.into_repr());
+            dn.push(t1);
+        }
+
+        Sk(d0, dn)
+    }
 }
 
 pub fn enc<R: Rng>(rng: &mut R, mpk: &Mpk, ids: &[&str], msg: &Gt) -> Ct {
@@ -157,4 +185,9 @@ fn test_hibe() {
     let sk = keygen(&mut rng, &mpk, &msk, &["pkg@ibe.rs", "bob@ibe.rs"]);
     let m3 = dec(&sk, &ct);
     assert_ne!(m3, m2);
+
+    let pkg_sk = keygen(&mut rng, &mpk, &msk, &["pkg@ibe.rs"]);
+    let sk = pkg_sk.keygen(&mut rng, &mpk, &["alice@ibe.rs"]);
+    let m2 = dec(&sk, &ct);
+    assert_eq!(m, m2);
 }
