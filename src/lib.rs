@@ -96,7 +96,7 @@ pub fn keygen<R: Rng>(rng: &mut R, mpk: &Mpk, Msk(msk): &Msk, ids: &[&str]) -> S
 }
 
 impl Sk {
-    pub fn keygen<R: Rng>(&self, rng: &mut R, mpk: &Mpk, ids: &[&str]) -> Sk {
+    pub fn delegate<R: Rng>(&self, rng: &mut R, mpk: &Mpk, ids: &[&str]) -> Sk {
         let Sk(d0, dn) = self;
         let Mpk { g: (_, g), .. } = mpk;
 
@@ -187,7 +187,7 @@ fn test_hibe() {
     assert_ne!(m3, m2);
 
     let pkg_sk = keygen(&mut rng, &mpk, &msk, &["pkg@ibe.rs"]);
-    let sk = pkg_sk.keygen(&mut rng, &mpk, &["alice@ibe.rs"]);
-    let m2 = dec(&sk, &ct);
-    assert_eq!(m, m2);
+    let sk = pkg_sk.delegate(&mut rng, &mpk, &["alice@ibe.rs"]);
+    let m4 = dec(&sk, &ct);
+    assert_eq!(m, m4);
 }
